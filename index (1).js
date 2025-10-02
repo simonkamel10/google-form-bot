@@ -1,4 +1,3 @@
-// index.js
 const { Client, GatewayIntentBits } = require("discord.js");
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -6,33 +5,31 @@ const bodyParser = require("body-parser");
 const app = express();
 app.use(bodyParser.json());
 
-// ====== CONFIGURE THESE LOCALLY ON HIDDENCLOUD ======
-// Replace these values on your server only (do not share them)
-const DISCORD_TOKEN = "your discord token";
-const GUILD_ID = "1280790513724948551";
-const CHANNEL_ID = "1410764795929563147";
-const ROLE_ID = "1393370163155304608";   // your provided role id
-const FORM_SECRET = "legendary-pope";    // must match Apps Script
-const PORT = 24719;                      // your server port (change if configured differently)
-// ===================================================
+// Load from environment variables (set these in Render Dashboard)
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const GUILD_ID = process.env.GUILD_ID;
+const CHANNEL_ID = process.env.CHANNEL_ID;
+const ROLE_ID = process.env.ROLE_ID;
+const FORM_SECRET = process.env.FORM_SECRET;
+const PORT = process.env.PORT || 3000; // Render provides PORT automatically
 
 // Create Discord client
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages
-  ]
+    GatewayIntentBits.GuildMessages,
+  ],
 });
 
 client.once("ready", () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
 
-// health check
+// Health check
 app.get("/", (req, res) => res.send("Quiz Bot up"));
 
-// endpoint for Google Apps Script
+// Endpoint for Google Apps Script
 app.post("/quiz", async (req, res) => {
   try {
     const incomingSecret = req.header("x-form-secret") || "";
@@ -52,51 +49,40 @@ app.post("/quiz", async (req, res) => {
     console.log(`Received /quiz for ${discordId} score=${numericScore}`);
 
     const guild = await client.guilds.fetch(GUILD_ID);
-    if (!guild) {
-      console.error("Guild not found:", GUILD_ID);
-      return res.status(500).json({ error: "Guild not found" });
-    }
+    if (!guild) return res.status(500).json({ error: "Guild not found" });
 
     const channel = await guild.channels.fetch(CHANNEL_ID);
-    if (!channel) {
-      console.error("Channel not found:", CHANNEL_ID);
-      return res.status(500).json({ error: "Channel not found" });
-    }
+    if (!channel) return res.status(500).json({ error: "Channel not found" });
 
-    // Post the score message
     await channel.send(`📊 <@${discordId}> scored **${numericScore}%** on the quiz.`);
 
-    // Assign role if score >= 85
     if (numericScore >= 85) {
       try {
-        console.log(`➡️ Trying to assign role ${ROLE_ID} to user ${discordId}`);
         const member = await guild.members.fetch(discordId);
-        if (!member) {
-          console.error("Member not found in guild:", discordId);
-          await channel.send(`⚠️ Could not find user <@${discordId}> in the server.`);
-          return res.status(404).json({ error: "Member not found" });
-        }
+        if (!member) return res.status(404).json({ error: "Member not found" });
 
         await member.roles.add(ROLE_ID);
-        console.log(`✅ Role ${ROLE_ID} assigned to ${discordId}`);
         await channel.send(`🎉 <@${discordId}> has been given the role <@&${ROLE_ID}>.`);
       } catch (err) {
         console.error("❌ Failed to add role:", err);
-        await channel.send(`⚠️ Could not assign role to <@${discordId}>. Error: ${err?.message || err}`);
-        return res.status(500).json({ error: "Failed to assign role", details: String(err) });
+        await channel.send(`⚠️ Could not assign role to <@${discordId}>.`);
+        return res.status(500).json({ error: "Failed to assign role" });
       }
     }
 
     return res.json({ ok: true });
   } catch (err) {
     console.error("Error in /quiz:", err);
-    return res.status(500).json({ error: "Internal server error", details: String(err) });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Start server and login
+// Start server
 app.listen(PORT, () => console.log(`🚀 Express listening on port ${PORT}`));
+
+// Login bot
 client.login(DISCORD_TOKEN);
+
 
 
 

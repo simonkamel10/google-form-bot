@@ -12,7 +12,7 @@ const GUILD_ID = "1280790513724948551";         // server/guild ID
 const CHANNEL_ID = "1410764795929563147";       // channel for messages
 const ROLE_ID = "1393370163155304608";          // role to assign
 const FORM_SECRET = "legendary-pope";           // must match Apps Script
-const PORT = 24719;                              // server port
+const PORT = 3000;                              // server port
 // ========================
 
 // Create Discord client
